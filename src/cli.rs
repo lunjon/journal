@@ -38,16 +38,14 @@ pub enum Command {
 
 #[derive(Args)]
 pub struct OpenArgs {
-    /// Name of the journal to open.
-    /// You can also try to open a file by pattern with the `--matches` option.
+    /// Name of the journal to open. Can be part of the name.
+    /// Opens first match or if there's multiple matches it
+    /// queries the user for a match.
     #[arg()]
-    pub name: Option<String>,
+    pub name: String,
     /// Optional workspace to use, else use the default workspace.
     #[arg(long, short = 'w', value_parser = valid_workspace_name)]
     pub workspace: Option<String>,
-    /// Opens the FIRST journal matching this name.
-    #[arg(long, short, conflicts_with = "name")]
-    pub matches: Option<String>,
 }
 
 #[derive(Args)]

@@ -114,7 +114,7 @@ impl FileEntry {
 
 impl fmt::Display for FileEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.filepath.to_string_lossy())
+        write!(f, "{}", self.filename())
     }
 }
 

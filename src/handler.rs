@@ -11,6 +11,7 @@ use crate::types::{Workspace, Workspaces};
 use crate::validate::valid_workspace_name;
 use anyhow::{bail, Result};
 use crossterm::style::Stylize;
+
 use regex::RegexBuilder;
 use std::collections::HashMap;
 use std::fs;
@@ -82,13 +83,7 @@ impl Handler {
 
     fn handle_open(&self, args: OpenArgs, print: bool) -> CmdResult {
         let dir = self.get_workspace(&args.workspace);
-        let filepath = match &args.matches {
-            Some(m) => self.find_entry(dir, m.to_string())?,
-            None => match args.name {
-                Some(name) => dir.push(&name),
-                None => bail!("name required when if not --matches is specified"),
-            },
-        };
+        let filepath = self.find_journal(dir, &args.name)?;
 
         if !filepath.exists() {
             bail!("journal doesn't exists (hint: jn create --help)")
@@ -167,14 +162,23 @@ impl Handler {
         Ok(entries)
     }
 
-    fn find_entry(&self, dir: FileEntry, pattern: String) -> Result<FileEntry> {
-        for file_entry in list_files(dir.as_ref())? {
-            if file_entry.filename().contains(&pattern) {
-                return Ok(file_entry);
-            }
+    fn find_journal(&self, dir: FileEntry, name: &str) -> Result<FileEntry> {
+        let files = list_files(dir.as_ref())?;
+        let mut matches: Vec<FileEntry> = files
+            .into_iter()
+            .filter(|entry| entry.filename().contains(name))
+            .collect();
+
+        if matches.is_empty() {
+            bail!("no journal matching: {}", name);
         }
 
-        bail!("no entry matching: {}", pattern)
+        if matches.len() == 1 {
+            return Ok(matches.pop().unwrap());
+        }
+
+        let entry = inquire::Select::new("Select journal", matches).prompt()?;
+        Ok(entry)
     }
 
     fn handle_remove(&self, args: RemoveArgs) -> CmdResult {
