@@ -7,3 +7,6 @@ updates:
     schedule:
       interval: monthly
       day: monday
+    groups:
+      production-dependencies:
+        dependency-type: "production"
