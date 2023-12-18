@@ -1261,7 +1261,7 @@ dependencies = [
 
 [[package]]
 name = "journal"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "aws-config",
@@ -1273,7 +1273,7 @@ dependencies = [
  "directories",
  "inquire",
  "regex",
- "ring 0.17.5",
+ "ring 0.17.7",
  "rustyline",
  "serde",
  "serde_json",
@@ -1658,9 +1658,9 @@ dependencies = [
 
 [[package]]
 name = "ring"
-version = "0.17.5"
+version = "0.17.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb0205304757e5d899b9c2e448b867ffd03ae7f988002e47cd24954391394d0b"
+checksum = "688c63d65483050968b2a8937f7995f443e27041a0f7700aa59b0822aedebb74"
 dependencies = [
  "cc",
  "getrandom",
