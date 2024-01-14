@@ -8,5 +8,6 @@ updates:
       interval: monthly
       day: monday
     groups:
-      production-dependencies:
-        dependency-type: "production"
+      dependencies:
+        patterns:
+          - "*"
