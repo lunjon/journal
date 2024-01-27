@@ -1,15 +1,8 @@
-use crate::export::aws::AwsS3Config;
 use crate::fs::read_file;
 use crate::fs::FileEntry;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
-#[derive(Default, Deserialize, Serialize)]
-pub struct Export {
-    #[serde(rename = "aws-s3")]
-    pub aws_s3: Option<AwsS3Config>,
-}
 
 #[derive(Default, Deserialize, Serialize)]
 pub struct Config {
@@ -19,8 +12,6 @@ pub struct Config {
     /// workspace is used.
     #[serde(rename = "default-workspace")]
     pub default_workspace: Option<String>,
-    /// Configuration for exporting.
-    pub export: Option<Export>,
     pub template: Option<HashMap<String, String>>,
 }
 

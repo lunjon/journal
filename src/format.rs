@@ -6,7 +6,6 @@ use crossterm::style::Stylize;
 pub enum Output {
     /// List of shallow representations of journals.
     WorkspaceJournals(String, Vec<FileEntry>),
-    EmptyExport,
     /// The result of performing an export.
     ExportResult {
         exported: Vec<String>,
@@ -52,7 +51,6 @@ impl TextFormatter {
 
                 lines.join("\n")
             }
-            Output::EmptyExport => "No files to export.".to_string(),
         }
     }
 }

@@ -6,22 +6,21 @@ use journal::handler::Handler;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let cli = Cli::parse();
     if let Command::Repl = cli.command {
-        return repl().await;
+        return repl();
     }
 
     let handler = Handler::new()?;
-    if let Err(err) = handler.handle(cli).await {
+    if let Err(err) = handler.handle(cli) {
         eprintln!("{}: {}", "error".red(), err);
     }
 
     Ok(())
 }
 
-async fn repl() -> Result<()> {
+fn repl() -> Result<()> {
     let handler = Handler::new()?;
     let mut rl = DefaultEditor::new()?;
 
@@ -43,7 +42,7 @@ async fn repl() -> Result<()> {
 
                 match Cli::try_parse_from(&line) {
                     Ok(cli) => {
-                        if let Err(err) = handler.handle(cli).await {
+                        if let Err(err) = handler.handle(cli) {
                             eprintln!("{}: {}", "error".red(), err);
                         }
                         println!();

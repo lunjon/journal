@@ -57,19 +57,4 @@ Note the following:
 
 ### Zip
 
-Running `jn export --target zip` creates a zip-archive (in current directory) named `journals.{DATE}.zip`.
-
-### AWS S3
-
-Backup to AWS S3 requires that you add the following to the configuration file `~/.config/journal/config.toml`:
-
-```toml
-[export.aws-s3]
-# Required: the name of the bucket
-bucket = "bucket name"
-# Optional: list of workspaces to include. Default syncs all workspaces.
-workspaces = ["private"]
-```
-
-Using this means that valid credentials must be available using any standard credentials chain;
-environment variables, `~/.aws/credentials`, SSO, etc.
+Running `jn export --target zip` creates a zip-archive named `journals.{DATE}.zip`.

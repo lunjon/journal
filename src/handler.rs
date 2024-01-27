@@ -2,7 +2,6 @@ use crate::cli::{
     Cli, Command, CreateArgs, ExportArgs, ListArgs, OpenArgs, RemoveArgs, SearchArgs,
 };
 use crate::config::Config;
-use crate::export::aws::AwsS3;
 use crate::export::zip;
 use crate::format::{Output, TextFormatter};
 use crate::fs::{list_dirs, list_files, read_lines, Editor, FileEntry};
@@ -66,7 +65,7 @@ impl Handler {
         })
     }
 
-    pub async fn handle(&self, cli: Cli) -> Result<()> {
+    pub fn handle(&self, cli: Cli) -> Result<()> {
         match cli.command {
             Command::Open(args) => self.handle_open(args, false)?,
             Command::Print(args) => self.handle_open(args, true)?,
@@ -74,7 +73,7 @@ impl Handler {
             Command::List(args) => self.handle_list(args)?,
             Command::Remove(args) => self.handle_remove(args)?,
             Command::Search(args) => self.handle_search(args)?,
-            Command::Export(args) => self.handle_export(args).await?,
+            Command::Export(args) => self.handle_export(args)?,
             _ => bail!("unsupport here"),
         };
 
@@ -249,25 +248,11 @@ impl Handler {
         Ok(())
     }
 
-    async fn handle_export(&self, args: ExportArgs) -> CmdResult {
+    fn handle_export(&self, args: ExportArgs) -> CmdResult {
         let workspaces = self.list_workspaces_files()?;
 
         let output = match args.target.trim() {
             "zip" => zip::export(args.dryrun, args.dir, workspaces)?,
-            "aws-s3" => {
-                let opts = match &self.config.export {
-                    Some(opts) => opts,
-                    None => bail!("no export options in configuration"),
-                };
-
-                let cfg = match &opts.aws_s3 {
-                    Some(cfg) => cfg,
-                    None => bail!("no export options for aws-s3 provider"),
-                };
-                let s3 = AwsS3::create(cfg).await;
-
-                s3.export(args.dryrun, workspaces).await?
-            }
             target => bail!("unknown export target: {}", target),
         };
 

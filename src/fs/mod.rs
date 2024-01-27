@@ -9,6 +9,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::{fmt, fs};
 
+#[allow(unused)]
 pub fn digest(data: &[u8]) -> Result<String> {
     let mut context = Context::new(&SHA256);
     context.update(data);
@@ -153,6 +154,7 @@ pub struct TempFile {
 }
 
 impl TempFile {
+    #[allow(unused)]
     pub fn create(path: &Path, bytes: &[u8]) -> Result<Self> {
         let mut file = OpenOptions::new().create_new(true).write(true).open(path)?;
         file.write_all(bytes)?;
