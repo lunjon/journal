@@ -57,6 +57,12 @@ pub struct FileEntry {
     is_dir: bool,
 }
 
+impl fmt::Debug for FileEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.filepath)
+    }
+}
+
 impl FileEntry {
     pub fn new(path: &Path) -> Self {
         Self {

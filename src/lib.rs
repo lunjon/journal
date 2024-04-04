@@ -1,5 +1,6 @@
 pub mod cli;
 mod config;
+mod crypto;
 mod export;
 mod format;
 mod fs;

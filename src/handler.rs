@@ -4,17 +4,17 @@ use crate::cli::{
 use crate::config::Config;
 use crate::export::zip;
 use crate::format::{Output, TextFormatter};
-use crate::fs::{list_dirs, list_files, read_lines, Editor, FileEntry};
+use crate::fs::{list_dirs, list_files, read_lines, FileEntry};
 use crate::template;
-use crate::types::{Workspace, Workspaces};
+use crate::types::{Journal, Workspace, Workspaces};
 use crate::validate::valid_workspace_name;
 use anyhow::{bail, Result};
 use crossterm::style::Stylize;
 
 use regex::RegexBuilder;
 use std::collections::HashMap;
-use std::fs;
 use std::io::{stdout, Write};
+use std::{env, fs};
 
 type CmdResult = Result<()>;
 
@@ -87,16 +87,17 @@ impl Handler {
         if !filepath.exists() {
             bail!("journal doesn't exists (hint: jn create --help)")
         }
+        let journal = Journal::open(&filepath, get_key(args.key))?;
 
         if print {
-            let bytes = filepath.read_bytes()?;
+            let bytes = journal.bytes()?;
             let mut stdout = stdout();
             stdout.write_all(&bytes)?;
-            Ok(())
         } else {
-            let editor = Editor::new();
-            editor.open(filepath.as_ref())
+            journal.edit()?;
         }
+
+        Ok(())
     }
 
     fn handle_create(&self, args: CreateArgs) -> CmdResult {
@@ -120,14 +121,9 @@ impl Handler {
         };
 
         let content = template::create(tmp);
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(filepath.as_ref())?;
-        write!(file, "{}", content)?;
+        Journal::create(&filepath, get_key(args.key), content.as_bytes())?;
 
-        let editor = Editor::new();
-        editor.open(filepath.as_ref())
+        Ok(())
     }
 
     fn handle_list(&self, args: ListArgs) -> CmdResult {
@@ -251,8 +247,10 @@ impl Handler {
     fn handle_export(&self, args: ExportArgs) -> CmdResult {
         let workspaces = self.list_workspaces_files()?;
 
+        // FIXME: encrypted files must be decrypted before getting exported.
+
         let output = match args.target.trim() {
-            "zip" => zip::export(args.dryrun, args.dir, workspaces)?,
+            "zip" => zip::export(args.dir, workspaces, get_key(args.key))?,
             target => bail!("unknown export target: {}", target),
         };
 
@@ -290,5 +288,16 @@ impl Handler {
             Some(w) => self.workspaces_dir.push(w),
             None => self.default_workspace_dir.clone(),
         }
+    }
+}
+
+fn get_key(from_args: Option<String>) -> Option<String> {
+    if let Some(key) = from_args {
+        return Some(key);
+    }
+
+    match env::var("JOURNAL_KEY") {
+        Ok(key) => Some(key),
+        Err(_) => None,
     }
 }

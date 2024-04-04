@@ -1,8 +1,14 @@
-use crate::{format::Output, fs::FileEntry, types::Workspaces, util::get_date};
+use crate::{
+    format::Output,
+    fs::FileEntry,
+    types::{Journal, Workspaces},
+    util::get_date,
+};
 use anyhow::Result;
+use crossterm::style::Stylize;
 use std::{fs::OpenOptions, io::Write};
 
-pub fn export(dryrun: bool, dir: Option<String>, ws: Workspaces) -> Result<Output> {
+pub fn export(dir: Option<String>, ws: Workspaces, key: Option<String>) -> Result<Output> {
     let dir = match dir {
         Some(dir) => FileEntry::from(dir.as_str()),
         None => FileEntry::from("."),
@@ -11,9 +17,18 @@ pub fn export(dryrun: bool, dir: Option<String>, ws: Workspaces) -> Result<Outpu
     let filename = format!("journals.{}.zip", get_date());
     let filepath = dir.push(&filename);
 
+    if filepath.exists() {
+        let msg = format!(
+            "Journals already exported at {}. Do you want to replace it?",
+            filepath.to_string().green()
+        );
+        if !inquire::Confirm::new(&msg).prompt()? {
+            return Ok(Output::empty_export());
+        }
+    }
+
     let zipfile_name = format!("{}", filepath);
     let mut file = OpenOptions::new()
-        .create_new(true)
         .write(true)
         .truncate(true)
         .open(zipfile_name)?;
@@ -23,21 +38,32 @@ pub fn export(dryrun: bool, dir: Option<String>, ws: Workspaces) -> Result<Outpu
         zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
     let mut exported: Vec<String> = Vec::new();
+    let mut skipped: Vec<String> = Vec::new();
 
     for (ws_name, ws) in ws {
         zip.add_directory(&ws_name, options)?;
 
         for file_entry in ws.files {
             let filename = format!("{}/{}", ws_name, file_entry.filename());
-            exported.push(filename.clone());
+            zip.start_file(&filename, options)?;
 
-            if dryrun {
-                continue;
+            let journal = match Journal::open(&file_entry, key.clone()) {
+                Ok(journal) => journal,
+                Err(_) => {
+                    skipped.push(filename);
+                    continue;
+                }
+            };
+
+            match journal.bytes() {
+                Ok(bytes) => {
+                    exported.push(filename);
+                    zip.write_all(&bytes)?;
+                }
+                Err(_) => {
+                    skipped.push(filename);
+                }
             }
-
-            zip.start_file(filename, options)?;
-            let bytes = file_entry.read_bytes()?;
-            zip.write_all(&bytes)?;
         }
     }
 
@@ -90,7 +116,7 @@ mod tests {
         workspaces.insert("testdata".to_string(), workspace);
 
         // Act
-        export(false, Some(fx.dirstr()), workspaces)?;
+        export(Some(fx.dirstr()), workspaces, None)?;
 
         Ok(())
     }

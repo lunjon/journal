@@ -12,6 +12,14 @@ pub enum Output {
         skipped: Vec<String>,
     },
 }
+impl Output {
+    pub(crate) fn empty_export() -> Output {
+        Self::ExportResult {
+            exported: vec![],
+            skipped: vec![],
+        }
+    }
+}
 
 pub struct TextFormatter {}
 

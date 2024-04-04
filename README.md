@@ -6,9 +6,9 @@ Features:
 - Simple interface for taking journals
 - Workspaces: separate journals in different workspaces
   - For example work, home, etc.
-- Backup to external storage (AWS S3)
+- Exporting (ZIP)
 - Templates
-- REPL
+- Encryption
 
 ## Installation
 
@@ -58,3 +58,8 @@ Note the following:
 ### Zip
 
 Running `jn export --target zip` creates a zip-archive named `journals.{DATE}.zip`.
+
+## Encryption
+
+Journals can be encrypted by using a key. It uses symmetric encryption based on AES GCM.
+

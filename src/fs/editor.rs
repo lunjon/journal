@@ -1,4 +1,7 @@
 use anyhow::{bail, Result};
+use std::env;
+use std::fs::OpenOptions;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::process::Command;
 
@@ -26,14 +29,40 @@ impl Editor {
         Self { editor }
     }
 
-    pub fn open(&self, path: &Path) -> Result<()> {
+    /// Edit the file at `path`.
+    pub fn edit(&self, path: &Path) -> Result<()> {
         let mut cmd = Command::new(&self.editor);
-        // cmd.arg(self.path.to_str().unwrap());
         cmd.arg(path);
 
         match cmd.status() {
             Ok(_) => Ok(()),
             Err(err) => bail!("error editing file {:?}: {}", &path, err),
         }
+    }
+
+    /// Edit ...
+    pub fn edit_temp(&self, filename: &str, content: &[u8]) -> Result<Vec<u8>> {
+        let mut path = env::temp_dir();
+        path.push(filename);
+
+        {
+            // Write in block so file gets closed
+            let mut file = OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&path)?;
+            file.write_all(content)?;
+        }
+
+        self.edit(&path)?;
+
+        let mut buf = Vec::new();
+        let mut file = OpenOptions::new().read(true).open(&path)?;
+        file.read_to_end(&mut buf)?;
+
+        // Remove temporary file.
+        std::fs::remove_file(&path)?;
+
+        Ok(buf)
     }
 }
