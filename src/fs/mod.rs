@@ -5,7 +5,7 @@ use anyhow::{bail, Result};
 use data_encoding::HEXLOWER;
 use ring::digest::{Context, SHA256};
 use std::fs::OpenOptions;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::{fmt, fs};
 
@@ -29,19 +29,6 @@ pub fn list_dirs(dir: &Path) -> Result<Vec<FileEntry>> {
     let entries = internal_list_dir(dir)?;
     let entries = entries.into_iter().filter(|e| e.is_dir).collect();
     Ok(entries)
-}
-
-pub fn read_lines(file: &Path) -> Result<Vec<String>> {
-    let file = OpenOptions::new().read(true).open(file)?;
-    let reader = BufReader::new(file);
-
-    Ok(reader
-        .lines()
-        .filter_map(|r| match r {
-            Ok(s) => Some(s),
-            Err(_) => None,
-        })
-        .collect())
 }
 
 pub fn read_file(path: &Path) -> Result<String> {

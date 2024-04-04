@@ -4,7 +4,7 @@ use crate::cli::{
 use crate::config::Config;
 use crate::export::zip;
 use crate::format::{Output, TextFormatter};
-use crate::fs::{list_dirs, list_files, read_lines, FileEntry};
+use crate::fs::{list_dirs, list_files, FileEntry};
 use crate::template;
 use crate::types::{Journal, Workspace, Workspaces};
 use crate::validate::valid_workspace_name;
@@ -212,13 +212,26 @@ impl Handler {
             }
         }
 
+        let key = get_key(args.key);
+
         for (name, workspace) in workspaces {
             for jn in workspace.files {
                 let filename = jn.filename();
-                let lines = read_lines(jn.as_ref())?;
+                let journal = Journal::open(&jn, key.clone())?;
 
-                let matches: Vec<String> = lines
-                    .iter()
+                let bytes = match journal.bytes() {
+                    Ok(bytes) => bytes,
+                    // We may get an error due to encryption
+                    Err(_) => continue,
+                };
+
+                let content = match String::from_utf8(bytes) {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+
+                let matches: Vec<String> = content
+                    .lines()
                     .enumerate()
                     .filter(|(_, line)| re.is_match(line))
                     .map(|(num, line)| {
