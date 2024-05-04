@@ -29,6 +29,7 @@ pub fn export(dir: Option<String>, ws: Workspaces, key: Option<String>) -> Resul
 
     let zipfile_name = format!("{}", filepath);
     let mut file = OpenOptions::new()
+        .create(true)
         .write(true)
         .truncate(true)
         .open(zipfile_name)?;

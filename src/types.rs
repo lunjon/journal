@@ -23,17 +23,10 @@ impl Workspace {
     }
 }
 
-/// Header is the first couple of bytes in a journal written to disk.
-/// The first byte is the version and currently the only version is
-/// 0x01. If not such version is found as the first byte, it is assumed
-/// to be a prior version. That is, flags is not supported.
-///
-/// After the version comes the following.
-///
-/// encrypted─┐
-///           00000000[nonce:12 bytes]
-///
-/// If `encrypted` was set the following two bytes are:
+/// A journal file has a header if it was encrypted, meaning it has to
+/// be decoded.
+/// If the journal was encoded, the first byte is set to 0x01 (00000001).
+/// It is then followed by two bytes:
 ///   - nonce length in bytes
 ///   - tag length in bytes
 /// Then those two bytes are immediately followed by
@@ -44,10 +37,6 @@ impl Workspace {
 struct Header {
     /// Size of the header in bytes.
     size: usize,
-    version: u8,
-    /// Whether this file was encrypted or not.
-    /// FIXME: remove this as have a field called `flags` (u8) instead.
-    encrypted: bool,
     /// The nonce bytes. Empty if not encrypted.
     nonce: Vec<u8>,
     /// Authentication tag used when encrypting/decrypting.
@@ -56,54 +45,34 @@ struct Header {
 }
 
 impl Header {
-    fn v0() -> Self {
+    fn empty() -> Self {
         Self {
-            version: 0x00,
-            encrypted: false,
             nonce: vec![],
             tag: vec![],
             size: 0,
         }
     }
 
-    fn new_non_encrypted() -> Self {
-        Self {
-            size: 2,
-            version: 0x01,
-            encrypted: false,
-            nonce: vec![],
-            tag: vec![],
-        }
-    }
-
     fn new_encrypted(nonce: Vec<u8>, tag: Vec<u8>) -> Self {
         Self {
-            size: 4 + nonce.len() + tag.len(),
-            version: 0x01,
-            encrypted: true,
+            size: 1 + nonce.len() + tag.len(),
             nonce,
             tag,
         }
     }
 
     fn encode<W: Write>(&self, writer: &mut W) -> Result<()> {
+        if self.size == 0 {
+            return Ok(());
+        }
+
         let mut buf = Vec::with_capacity(self.size);
-        buf.push(self.version);
+        buf.push(0x01);
 
-        let mut flags = 0x00;
-
-        if self.encrypted {
-            flags |= 0x80; // Set the encrypted bit (MSB)
-        }
-
-        buf.push(flags);
-
-        if self.encrypted {
-            buf.push(self.nonce.len() as u8);
-            buf.push(self.tag.len() as u8);
-            buf.extend_from_slice(&self.nonce);
-            buf.extend_from_slice(&self.tag);
-        }
+        buf.push(self.nonce.len() as u8);
+        buf.push(self.tag.len() as u8);
+        buf.extend_from_slice(&self.nonce);
+        buf.extend_from_slice(&self.tag);
 
         writer.write_all(&buf)?;
 
@@ -111,58 +80,41 @@ impl Header {
     }
 
     fn decode(value: &[u8]) -> Result<Self> {
-        let version = match value.first() {
+        let flag = match value.first() {
             Some(b) => *b,
-            None => return Ok(Header::v0()),
+            None => return Ok(Header::empty()),
         };
 
-        if version != 0x01 {
-            return Ok(Header::v0());
+        if flag != 0x01 {
+            return Ok(Header::empty());
         }
 
-        let flags = match value.get(1) {
-            Some(b) => *b,
-            None => return Ok(Header::v0()),
-        };
-
-        let mut size = 2;
+        // File was encrypted.
+        let mut size = 1;
         let mut nonce: Vec<u8> = vec![];
         let mut tag: Vec<u8> = vec![];
-        let mut encrypted = false;
 
-        // Is the MSB set?
-        if (flags & 0x80) == 0x80 {
-            encrypted = true;
+        // The next byte is the size of the nonce in bytes.
+        let nonce_size = value
+            .get(1)
+            .context("failed to decode header: missing nonce size")?;
+        let nonce_size = *nonce_size as usize;
 
-            // File was encrypted.
-            // The next byte is the size of the nonce in bytes.
-            let nonce_size = value
-                .get(2)
-                .context("failed to decode header: missing nonce size")?;
-            let nonce_size = *nonce_size as usize;
+        // The next byte is the size of the tag in bytes.
+        let tag_size = value
+            .get(2)
+            .context("failed to decode header: missing tag size")?;
+        let tag_size = *tag_size as usize;
 
-            // The next byte is the size of the tag in bytes.
-            let tag_size = value
-                .get(3)
-                .context("failed to decode header: missing tag size")?;
-            let tag_size = *tag_size as usize;
+        size += 2;
 
-            size += 2;
+        nonce.extend_from_slice(&value[size..(size + nonce_size)]);
+        size += nonce_size;
 
-            nonce.extend_from_slice(&value[size..(size + nonce_size)]);
-            size += nonce_size;
+        tag.extend_from_slice(&value[size..(size + tag_size)]);
+        size += tag_size;
 
-            tag.extend_from_slice(&value[size..(size + tag_size)]);
-            size += tag_size;
-        }
-
-        Ok(Self {
-            size,
-            version,
-            encrypted,
-            nonce,
-            tag,
-        })
+        Ok(Self { size, nonce, tag })
     }
 }
 
@@ -201,8 +153,12 @@ impl Journal {
         })
     }
 
+    fn encrypted(&self) -> bool {
+        self.header.size > 0
+    }
+
     pub fn bytes(&self) -> Result<Vec<u8>> {
-        if self.header.encrypted {
+        if self.encrypted() {
             self.decrypt()
         } else {
             let data = &self.contents[self.header.size..];
@@ -238,8 +194,6 @@ impl Journal {
 
             writer.write_all(&res.ciphertext)?;
         } else {
-            let header = Header::new_non_encrypted();
-            header.encode(writer)?;
             writer.write_all(content)?;
         }
 

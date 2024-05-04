@@ -24,9 +24,12 @@ pub enum Command {
     /// Lists journals.
     #[command(visible_alias = "ls")]
     List(ListArgs),
-    /// Removes a journal.
+    /// Removes a journal or workspace.
     #[command(visible_alias = "rm")]
     Remove(RemoveArgs),
+    /// Renames a journal or workspace.
+    #[command(visible_alias = "mv")]
+    Rename(RenameArgs),
     /// Search in your journals.
     /// Searches across all workspaces by default.
     #[command()]
@@ -75,6 +78,24 @@ pub struct RemoveArgs {
     /// Optional workspace to use, else use the default workspace.
     #[arg(long, short = 'w', value_parser = valid_workspace_name)]
     pub workspace: Option<String>,
+    /// Remove `name` as a workspace instead of a journal.
+    #[arg(long, conflicts_with = "workspace")]
+    pub remove_workspace: bool,
+}
+
+#[derive(Args)]
+pub struct RenameArgs {
+    /// The name of the journal to rename.
+    #[arg()]
+    pub old: String,
+    #[arg()]
+    pub new: String,
+    /// Optional workspace to use, else use the default workspace.
+    #[arg(long, short = 'w', value_parser = valid_workspace_name)]
+    pub workspace: Option<String>,
+    /// Rename `name` as a workspace instead of a journal.
+    #[arg(long, conflicts_with = "workspace")]
+    pub rename_workspace: bool,
 }
 
 #[derive(Args)]

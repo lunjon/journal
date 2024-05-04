@@ -1,4 +1,5 @@
 default: fmt check lint
+
 check:
 	cargo check
 	cargo test

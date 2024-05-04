@@ -1,5 +1,5 @@
 use crate::cli::{
-    Cli, Command, CreateArgs, ExportArgs, ListArgs, OpenArgs, RemoveArgs, SearchArgs,
+    Cli, Command, CreateArgs, ExportArgs, ListArgs, OpenArgs, RemoveArgs, RenameArgs, SearchArgs,
 };
 use crate::config::Config;
 use crate::export::zip;
@@ -72,6 +72,7 @@ impl Handler {
             Command::Create(args) => self.handle_create(args)?,
             Command::List(args) => self.handle_list(args)?,
             Command::Remove(args) => self.handle_remove(args)?,
+            Command::Rename(args) => self.handle_rename(args)?,
             Command::Search(args) => self.handle_search(args)?,
             Command::Export(args) => self.handle_export(args)?,
             _ => bail!("unsupport here"),
@@ -177,6 +178,17 @@ impl Handler {
     }
 
     fn handle_remove(&self, args: RemoveArgs) -> CmdResult {
+        if args.remove_workspace {
+            // Removes workspace instead of journal
+            let dir = self.workspaces_dir.push(&args.name);
+            if !dir.exists() {
+                bail!("workspace does not exists: {}", dir);
+            }
+
+            fs::remove_dir_all(dir.as_ref())?;
+            return Ok(());
+        }
+
         let dir = self.get_workspace(&args.workspace);
         let filepath = dir.push(&args.name);
 
@@ -186,6 +198,38 @@ impl Handler {
             let err = format!(
                 "journal named '{}' not found in workspace '{}'",
                 args.name,
+                dir.filename()
+            );
+            self.output_error(&err);
+        }
+
+        Ok(())
+    }
+
+    fn handle_rename(&self, args: RenameArgs) -> CmdResult {
+        if args.rename_workspace {
+            // Renames a workspace instead of journal
+            let old = self.workspaces_dir.push(&args.old);
+            let new = self.workspaces_dir.push(&args.new);
+
+            if !old.exists() {
+                bail!("workspace does not exists: {}", old);
+            }
+
+            fs::rename(old.as_ref(), new.as_ref())?;
+            return Ok(());
+        }
+
+        let dir = self.get_workspace(&args.workspace);
+        let filepath = dir.push(&args.old);
+
+        if filepath.exists() {
+            let new = dir.push(&args.new);
+            fs::rename(filepath.as_ref(), new.as_ref())?;
+        } else {
+            let err = format!(
+                "journal named '{}' not found in workspace '{}'",
+                args.old,
                 dir.filename()
             );
             self.output_error(&err);
